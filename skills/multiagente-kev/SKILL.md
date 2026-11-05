@@ -101,13 +101,12 @@ Por defecto un subagente usa el mismo modelo que el coordinador. Para ahorrar us
 | Modelo | Roles |
 |---|---|
 | **Opus** | Expertos que crean o deciden: código, SQL, arquitectura, matrices de gestión, diagramas, redacción académica, diseño. También el revisor/tester y el **auditor de seguridad**, porque un error ahí es caro. |
-| **Sonnet** | Lector/sintetizador, documentador, investigador web e integrador de partes que solo hay que unir. |
-| **Haiku** | Tareas mecánicas muy simples: buscar o renombrar archivos, convertir formatos, pruebas rápidas. |
+| **Sonnet** | Lector/sintetizador, documentador, investigador web, integrador de partes que solo hay que unir y tareas mecánicas (buscar o renombrar archivos, convertir formatos, pruebas rápidas). Es el mínimo: nunca se usa un modelo inferior a Sonnet. |
 
 Reglas:
 - El coordinador siempre trabaja con el modelo que Kev tenga elegido.
 - Si la tarea de un rol "Sonnet" resulta compleja (material muy técnico, una integración con decisiones), se usa Opus.
-- Si el revisor rechaza el trabajo de un agente Sonnet o Haiku por calidad, su relevo va en Opus.
+- Si el revisor rechaza el trabajo de un agente Sonnet por calidad, su relevo va en Opus.
 - Si Kev pide un modelo para todos ("todo en Opus"), se respeta.
 - El esfuerzo de razonamiento de cada subagente lo define su tipo de agente; el coordinador no lo puede fijar por agente. No prometerle a Kev un nivel de esfuerzo para los subagentes.
 - En la pregunta del Paso 0, el árbol propuesto muestra el modelo de cada agente.

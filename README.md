@@ -42,7 +42,7 @@ flowchart TD
 - **Compuerta de seguridad.** Ningún commit pasa sin que el auditor revise secretos, `.env`, llaves, datos personales reales y vulnerabilidades básicas.
 - **Memoria del proyecto en archivos.** `contexto-compartido.md`, `estado-proyecto.md`, `mapa-material.md` y bitácoras por agente. Si la conversación se compacta, el coordinador relee esos archivos y sigue sin perder decisiones.
 - **Relevos.** Si un agente se satura, deja su bitácora al día y otro con el mismo rol sigue desde donde quedó. El coordinador también se puede relevar a una conversación nueva sin relanzar agentes de partes terminadas.
-- **Modelo según el rol.** Opus para quien crea, decide o audita; Sonnet para lectura, documentación e integración simple; Haiku para tareas mecánicas. Ahorra uso del plan sin bajar la calidad donde importa.
+- **Modelo según el rol.** Opus para quien crea, decide o audita; Sonnet, como mínimo, para lectura, documentación, integración simple y tareas mecánicas. Ahorra uso del plan sin bajar la calidad donde importa.
 - **Respaldo.** Si la sesión no permite subagentes, trabaja en una sola conversación con todo lo demás.
 
 ## Tablero de agentes
