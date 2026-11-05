@@ -53,6 +53,16 @@ La skill crea (una sola vez) una página privada en la cuenta del usuario que mu
 - Una casilla por agente para dejarle **sugerencias** y **arrastrar archivos** de cualquier tipo (Word, Excel, PDF, `.py`, `.sql`…, hasta 5 MB). El coordinador las entrega al agente correcto y confirma en el chat.
 - Funciona en el teléfono y en la computadora, con tema claro y oscuro.
 
+![Tablero de agentes en la computadora, con un proyecto de ejemplo](docs/tablero-escritorio.png)
+
+<p align="center">
+  <img src="docs/tablero-movil.png" alt="Tablero de agentes en el teléfono, con la casilla de sugerencias y un archivo adjunto" width="300">
+  &nbsp;
+  <img src="docs/tablero-escritorio-oscuro.png" alt="Tablero de agentes en tema oscuro" width="480">
+</p>
+
+*Capturas con datos de ejemplo.*
+
 El diseño viaja dentro de la skill (`skills/multiagente-kev/assets/tablero-agentes.html`); los datos viven en la cuenta de cada usuario, con acceso solo para el dueño.
 
 ## Instalación
@@ -89,6 +99,7 @@ skills/multiagente-kev/
   assets/                diseño del Tablero de agentes
   scripts/               reconstrucción de archivos adjuntos
 dist/                    zip listo para subir a claude.ai
+docs/                    capturas del tablero
 ```
 
 ## Licencia
