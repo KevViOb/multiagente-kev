@@ -1,0 +1,456 @@
+<title>Tablero de agentes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Lexend:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: el coordinador arriba, una barra punteada que reparte hacia los agentes, que bajan en una grilla que se vuelve una columna en el teléfono. */
+:root {
+  --bg: #f2f5f9;
+  --panel: #ffffff;
+  --fg: #16202c;
+  --muted: #5b6878;
+  --line: #c9d3df;
+  --accent: #2f63d0;
+  --accent-soft: #dfe8fa;
+  --ok: #1f8a5b;
+  --ok-soft: #dcf2e7;
+  --warn: #a86a00;
+  --warn-soft: #fbefd5;
+  --bad: #c0392b;
+  --bad-soft: #fbe2df;
+  --idle: #8a96a5;
+  --idle-soft: #e8ecf1;
+  --r-coord: #cfe0fb;
+  --r-lector: #cdeedd;
+  --r-experto: #e2dbfa;
+  --r-revisor: #fbeec2;
+  --r-doc: #d3ebe3;
+  --r-auditor: #f8d9e2;
+  --r-integrador: #f6dcef;
+  --r-otro: #e5e9ef;
+  --ink-icon: #1b2533;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Lexend", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f141b; --panel: #171e28; --fg: #e6ecf3; --muted: #9aa8b8; --line: #2c3746;
+    --accent: #7ea6f5; --accent-soft: #1d2b45; --ok: #5cc995; --ok-soft: #14301f;
+    --warn: #e5b04a; --warn-soft: #33270f; --bad: #f08376; --bad-soft: #3a1a17;
+    --idle: #7f8b9a; --idle-soft: #222b37;
+    --r-coord: #22385e; --r-lector: #1c3d2f; --r-experto: #33295a; --r-revisor: #4a3d16;
+    --r-doc: #1d3a32; --r-auditor: #4a2230; --r-integrador: #432441; --r-otro: #2a3340;
+    --ink-icon: #eef3f9; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f141b; --panel: #171e28; --fg: #e6ecf3; --muted: #9aa8b8; --line: #2c3746;
+  --accent: #7ea6f5; --accent-soft: #1d2b45; --ok: #5cc995; --ok-soft: #14301f;
+  --warn: #e5b04a; --warn-soft: #33270f; --bad: #f08376; --bad-soft: #3a1a17;
+  --idle: #7f8b9a; --idle-soft: #222b37;
+  --r-coord: #22385e; --r-lector: #1c3d2f; --r-experto: #33295a; --r-revisor: #4a3d16;
+  --r-doc: #1d3a32; --r-auditor: #4a2230; --r-integrador: #432441; --r-otro: #2a3340;
+  --ink-icon: #eef3f9; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+header { display: flex; flex-direction: column; gap: 10px; }
+h1 { font-family: var(--f-display); font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.1; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.sub { color: var(--muted); margin: 0; max-width: 62ch; }
+.proyectos { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: 500 0.85rem var(--f-body); border: 1px solid var(--line); background: var(--panel); color: var(--fg);
+  border-radius: 999px; padding: 6px 14px; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+.chip:focus-visible, button:focus-visible, textarea:focus-visible, .nodo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.meta { font-family: var(--f-mono); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Etapas del flujo */
+.etapas { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.etapa { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.etapa .barra { height: 6px; border-radius: 3px; background: var(--idle-soft); }
+.etapa.hecha .barra { background: var(--ok); }
+.etapa.actual .barra { background: var(--accent); }
+.etapa span { font-size: 0.74rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; overflow-wrap: anywhere; }
+.etapa.actual span { color: var(--fg); font-weight: 500; }
+
+/* Árbol */
+.arbol { display: flex; flex-direction: column; align-items: center; }
+.coord { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.coord .circulo { width: 76px; height: 76px; background: var(--r-coord); }
+.coord strong { font-family: var(--f-display); font-size: 1.1rem; }
+.tallo { width: 0; height: 26px; border-left: 2px dashed var(--line); }
+.bus { width: 100%; border-top: 2px dashed var(--line); }
+.agentes { width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+.rama { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.rama::before { content: ""; height: 18px; border-left: 2px dashed var(--line); }
+.nodo {
+  width: 100%; min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; text-align: left; color: var(--fg); font: inherit;
+}
+.nodo.relevado { opacity: 0.55; }
+.cab { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.circulo { width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.circulo svg { width: 55%; height: 55%; stroke: var(--ink-icon); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nombre { font-weight: 500; line-height: 1.25; overflow-wrap: anywhere; min-width: 0; }
+.fila { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pill { font-size: 0.72rem; font-weight: 500; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.pill.trabajando { background: var(--accent-soft); color: var(--accent); }
+.pill.terminado { background: var(--ok-soft); color: var(--ok); }
+.pill.relevado, .pill.pendiente { background: var(--idle-soft); color: var(--idle); }
+.pill.error { background: var(--bad-soft); color: var(--bad); }
+.pill.etapa-p { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+.punto { width: 7px; height: 7px; border-radius: 50%; background: currentColor; display: inline-block; margin-right: 5px; vertical-align: 1px; }
+.trabajando .punto { animation: latido 1.4s ease-in-out infinite; }
+@keyframes latido { 50% { opacity: 0.25; } }
+@media (prefers-reduced-motion: reduce) { .trabajando .punto { animation: none; } }
+.accion { font-size: 0.85rem; color: var(--muted); overflow-wrap: anywhere; }
+.archivo { font-family: var(--f-mono); font-size: 0.75rem; color: var(--muted); overflow-wrap: anywhere; }
+
+.detalle { border-top: 1px dashed var(--line); padding-top: 8px; display: flex; flex-direction: column; gap: 8px; cursor: default; }
+.detalle label { font-size: 0.8rem; color: var(--muted); }
+textarea {
+  width: 100%; min-height: 72px; resize: vertical; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+  background: var(--bg); color: var(--fg); font: 0.9rem var(--f-body);
+}
+.boton { align-self: flex-start; border: none; border-radius: 10px; padding: 8px 14px; background: var(--accent); color: var(--panel); font: 500 0.85rem var(--f-body); cursor: pointer; }
+.boton:disabled { opacity: 0.5; cursor: default; }
+.zona { display: flex; flex-direction: column; gap: 6px; border: 1.5px dashed var(--line); border-radius: 12px; padding: 8px; }
+.zona.encima { border-color: var(--accent); background: var(--accent-soft); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.adj { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; background: var(--idle-soft); border-radius: 8px; padding: 3px 4px 3px 8px; max-width: 100%; overflow-wrap: anywhere; }
+.quitar { border: none; background: transparent; color: var(--muted); font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 4px; }
+.boton.secundario { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.sug { font-size: 0.82rem; display: flex; gap: 6px; align-items: baseline; }
+.sug .pill { flex: none; }
+.aviso { font-size: 0.8rem; color: var(--muted); }
+
+.leyenda { display: flex; flex-wrap: wrap; gap: 10px 18px; font-size: 0.8rem; color: var(--muted); }
+.vacio { background: var(--panel); border: 1px dashed var(--line); border-radius: 14px; padding: 20px; color: var(--muted); max-width: 62ch; }
+footer { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+@media (max-width: 520px) {
+  .etapas { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .etapa span { font-size: 0.62rem; letter-spacing: 0.02em; }
+  .agentes { grid-template-columns: 1fr; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Tablero de agentes</h1>
+    <p class="sub">Quién hace qué y en qué etapa va cada proyecto que trabaja el coordinador con multiagentes. Tocá un agente para ver su detalle, dejarle una sugerencia o adjuntarle archivos.</p>
+    <div class="proyectos" id="proyectos" role="group" aria-label="Proyectos"></div>
+    <div class="meta" id="meta">Conectando con los datos del tablero…</div>
+  </header>
+
+  <section aria-label="Etapas del proyecto" class="etapas" id="etapas"></section>
+
+  <section class="arbol" id="arbol" aria-live="polite">
+    <div class="vacio" id="vacio">
+      Todavía no hay proyectos. Cuando el coordinador empiece un trabajo con multiagentes, el equipo aparece aquí con la etapa y el estado de cada agente.
+    </div>
+  </section>
+
+  <div class="leyenda" aria-label="Leyenda">
+    <span><span class="pill trabajando"><span class="punto"></span>trabajando</span></span>
+    <span><span class="pill terminado"><span class="punto"></span>terminado</span></span>
+    <span><span class="pill pendiente"><span class="punto"></span>pendiente</span></span>
+    <span><span class="pill relevado"><span class="punto"></span>relevado</span></span>
+    <span><span class="pill error"><span class="punto"></span>con problema</span></span>
+  </div>
+
+  <footer>
+    <span>Lo actualiza el coordinador cada vez que un agente arranca, avanza, termina o es relevado. Las sugerencias le llegan al agente en el siguiente paso del coordinador.</span>
+    <span>Creado por Kevin Villalobos Obando.</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  const ETAPAS = ['Lectura', 'Producción', 'Revisión', 'Integración', 'Entrega'];
+  const ICONOS = {
+    coordinador: '<rect x="5" y="8" width="14" height="11" rx="4"/><circle cx="9.5" cy="13.5" r="1.3"/><circle cx="14.5" cy="13.5" r="1.3"/><path d="M12 8V5"/><circle cx="12" cy="4" r="1"/>',
+    lector: '<circle cx="10.5" cy="10.5" r="5.5"/><path d="M15 15l5 5"/>',
+    investigador: '<circle cx="10.5" cy="10.5" r="5.5"/><path d="M15 15l5 5"/><path d="M8.5 10.5h4"/>',
+    codigo: '<path d="M8 7l-5 5 5 5"/><path d="M16 7l5 5-5 5"/><path d="M13.5 5l-3 14"/>',
+    sql: '<ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6"/>',
+    diagramas: '<rect x="3" y="4" width="7" height="5" rx="1"/><rect x="14" y="15" width="7" height="5" rx="1"/><path d="M6.5 9v4.5h11V15"/>',
+    gestion: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9.5h16M4 14.5h16M10 4v16"/>',
+    redactor: '<path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13 7l4 4"/>',
+    diseno: '<circle cx="12" cy="12" r="8"/><circle cx="9" cy="9.5" r="1.2"/><circle cx="14.5" cy="8.5" r="1.2"/><circle cx="16" cy="13" r="1.2"/><path d="M11 16.5a2 2 0 0 0 3 1"/>',
+    revisor: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11l1.5 1.5L13 10"/><path d="M9 16.5h6"/>',
+    tester: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1"/><path d="M9 11l1.5 1.5L13 10"/><path d="M9 16.5h6"/>',
+    documentador: '<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h4"/>',
+    auditor: '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9.5 12l2 2 3.5-3.5"/>',
+    integrador: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z"/>',
+    otro: '<circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/>'
+  };
+  const COLOR_ROL = {
+    coordinador: '--r-coord', lector: '--r-lector', investigador: '--r-lector', codigo: '--r-experto', sql: '--r-experto',
+    diagramas: '--r-experto', gestion: '--r-experto', redactor: '--r-experto', diseno: '--r-experto',
+    revisor: '--r-revisor', tester: '--r-revisor', documentador: '--r-doc', auditor: '--r-auditor', integrador: '--r-integrador', otro: '--r-otro'
+  };
+  const ESTADO_TXT = { trabajando: 'trabajando', terminado: 'terminado', pendiente: 'pendiente', relevado: 'relevado', error: 'con problema', interrumpido: 'con problema' };
+
+  let proyectos = [], agentes = [], sugerencias = [];
+  let seleccion = null, abierto = null, db = null, cargado = false;
+  const borradores = {};
+  try { seleccion = localStorage.getItem('tablero-proyecto'); } catch (e) {}
+
+  const $ = id => document.getElementById(id);
+  function el(tag, attrs, ...hijos) {
+    const n = document.createElement(tag);
+    for (const k in attrs || {}) {
+      if (k === 'class') n.className = attrs[k];
+      else if (k === 'text') n.textContent = attrs[k];
+      else if (k.startsWith('on')) n.addEventListener(k.slice(2), attrs[k]);
+      else n.setAttribute(k, attrs[k]);
+    }
+    for (const h of hijos) if (h) n.append(h);
+    return n;
+  }
+  function icono(rol) {
+    const r = ICONOS[rol] ? rol : 'otro';
+    const c = el('div', { class: 'circulo' });
+    c.style.background = 'var(' + (COLOR_ROL[r] || '--r-otro') + ')';
+    c.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + ICONOS[r] + '</svg>';
+    return c;
+  }
+  function pill(estado) {
+    const e = ESTADO_TXT[estado] ? estado : 'pendiente';
+    const cls = estado === 'interrumpido' ? 'error' : e;
+    return el('span', { class: 'pill ' + cls }, el('span', { class: 'punto' }), ESTADO_TXT[e]);
+  }
+  function hace(iso) {
+    if (!iso) return '';
+    const t = Date.parse(iso); if (isNaN(t)) return '';
+    const m = Math.round((Date.now() - t) / 60000);
+    if (m < 1) return 'hace un momento';
+    if (m < 60) return 'hace ' + m + ' min';
+    const h = Math.round(m / 60);
+    if (h < 24) return 'hace ' + h + ' h';
+    return new Date(t).toLocaleDateString('es-CR', { day: 'numeric', month: 'short' });
+  }
+
+  function proyectoActual() {
+    if (!proyectos.length) return null;
+    const p = proyectos.find(x => x.id === seleccion);
+    return p || proyectos[0];
+  }
+
+  function render() {
+    const ta = document.querySelector('.detalle textarea');
+    const teniaFoco = ta && document.activeElement === ta;
+    if (ta && abierto) borradores[abierto] = ta.value;
+    pintar();
+    if (teniaFoco) { const nuevo = document.querySelector('.detalle textarea'); if (nuevo) { nuevo.focus(); nuevo.selectionStart = nuevo.selectionEnd = nuevo.value.length; } }
+  }
+
+  function pintar() {
+    const cont = $('proyectos'); cont.textContent = '';
+    const p = proyectoActual();
+    for (const x of proyectos) {
+      cont.append(el('button', {
+        class: 'chip', type: 'button', 'aria-pressed': String(p && x.id === p.id),
+        onclick: () => { seleccion = x.id; abierto = null; try { localStorage.setItem('tablero-proyecto', x.id); } catch (e) {} render(); }
+      }, x.nombre || x.id));
+    }
+
+    const etapas = $('etapas'); etapas.textContent = '';
+    const fase = p ? Math.min(5, Math.max(1, Number(p.fase) || 1)) : 0;
+    ETAPAS.forEach((nombre, i) => {
+      const cls = !p ? 'etapa' : (i + 1 < fase ? 'etapa hecha' : i + 1 === fase ? 'etapa actual' : 'etapa');
+      etapas.append(el('div', { class: cls }, el('div', { class: 'barra' }), el('span', { text: nombre })));
+    });
+
+    const arbol = $('arbol');
+    if (!p) {
+      arbol.textContent = '';
+      arbol.append(el('div', { class: 'vacio', text: cargado
+        ? 'Todavía no hay proyectos. Cuando el coordinador empiece un trabajo con multiagentes, el equipo aparece aquí con la etapa y el estado de cada agente.'
+        : 'Cargando el tablero…' }));
+      $('meta').textContent = cargado ? 'Sin proyectos todavía' : $('meta').textContent;
+      return;
+    }
+
+    const lista = agentes.filter(a => a.proyecto === p.id).sort((a, b) => (a.orden ?? 99) - (b.orden ?? 99) || String(a.nombre).localeCompare(String(b.nombre)));
+    const activos = lista.filter(a => a.estado === 'trabajando').length;
+    const listos = lista.filter(a => a.estado === 'terminado').length;
+    $('meta').textContent = [
+      'Coordinador: ' + (p.coordinador || 'original'),
+      activos + ' trabajando · ' + listos + ' terminados · ' + lista.length + ' agentes',
+      p.actualizado ? 'actualizado ' + hace(p.actualizado) : ''
+    ].filter(Boolean).join('  ·  ');
+
+    arbol.textContent = '';
+    const coord = el('div', { class: 'coord' }, icono('coordinador'), el('strong', { text: 'Coordinador' }),
+      el('span', { class: 'accion', text: p.accion || ('Etapa: ' + ETAPAS[fase - 1]) }));
+    arbol.append(coord);
+    if (!lista.length) {
+      arbol.append(el('div', { class: 'vacio', text: 'El coordinador todavía no lanzó agentes en este proyecto.' }));
+      return;
+    }
+    arbol.append(el('div', { class: 'tallo' }), el('div', { class: 'bus' }));
+    const grid = el('div', { class: 'agentes' });
+    const porId = Object.fromEntries(lista.map(a => [a.id, a]));
+    for (const a of lista) grid.append(el('div', { class: 'rama' }, nodo(a, porId, p)));
+    arbol.append(grid);
+  }
+
+  function nodo(a, porId, p) {
+    const abiertoAqui = abierto === a.id;
+    const n = el('div', {
+      class: 'nodo' + (a.estado === 'relevado' ? ' relevado' : ''), role: 'button', tabindex: '0',
+      'aria-expanded': String(abiertoAqui), id: 'nodo-' + a.id,
+      onclick: ev => { if (ev.target.closest('.detalle')) return; abierto = abiertoAqui ? null : a.id; render(); },
+      onkeydown: ev => { if ((ev.key === 'Enter' || ev.key === ' ') && !ev.target.closest('.detalle')) { ev.preventDefault(); abierto = abiertoAqui ? null : a.id; render(); } }
+    });
+    n.append(el('div', { class: 'cab' }, icono(a.rol), el('div', { class: 'nombre', text: a.nombre || a.id })));
+    n.append(el('div', { class: 'fila' }, pill(a.estado), a.etapa ? el('span', { class: 'pill etapa-p', text: a.etapa }) : null));
+    const relevo = a.relevadoPor && porId[a.relevadoPor];
+    const accion = a.estado === 'relevado'
+      ? 'Relevado por ' + (relevo ? relevo.nombre : 'otro agente')
+      : (a.accion || '');
+    if (accion) n.append(el('div', { class: 'accion', text: accion }));
+    if (a.archivo) n.append(el('div', { class: 'archivo', text: a.archivo }));
+    if (abiertoAqui) n.append(detalle(a, p));
+    return n;
+  }
+
+  const MAX_BYTES = 5 * 1024 * 1024;
+  const TROZO = 180000;
+  const pendientes = {};
+  const mensajes = {};
+
+  function tamano(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return Math.round(b / 1024) + ' KB';
+    return (b / 1024 / 1024).toFixed(1) + ' MB';
+  }
+
+  function aBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+
+  async function subirAdjunto(file, p, a, avance) {
+    const datos = aBase64(await file.arrayBuffer());
+    const partes = Math.max(1, Math.ceil(datos.length / TROZO));
+    const ref = db.collection('adjuntos').doc();
+    await ref.set({ proyecto: p.id, agente: a.id, nombre: file.name, tipo: file.type || 'application/octet-stream', bytes: file.size, partes, completo: false, creado: new Date().toISOString() });
+    for (let i = 0; i < partes; i++) {
+      avance(file.name + ': ' + Math.round((i / partes) * 100) + '%');
+      await db.collection('adjuntos_partes').doc(ref.id + '--' + String(i).padStart(3, '0'))
+        .set({ adjunto: ref.id, n: i, datos: datos.slice(i * TROZO, (i + 1) * TROZO) });
+    }
+    await ref.set({ proyecto: p.id, agente: a.id, nombre: file.name, tipo: file.type || 'application/octet-stream', bytes: file.size, partes, completo: true, creado: new Date().toISOString() });
+    return { id: ref.id, nombre: file.name, bytes: file.size };
+  }
+
+  function detalle(a, p) {
+    const d = el('div', { class: 'detalle' });
+    const propias = sugerencias.filter(s => s.agente === a.id && s.proyecto === p.id)
+      .sort((x, y) => String(y.creada).localeCompare(String(x.creada))).slice(0, 5);
+    for (const s of propias) {
+      const fila = el('div', { class: 'sug' },
+        el('span', { class: 'pill ' + (s.estado === 'entregada' ? 'terminado' : 'pendiente'), text: s.estado === 'entregada' ? 'entregada' : 'pendiente' }),
+        el('span', { text: s.texto || '(solo archivos)' }));
+      d.append(fila);
+      if (Array.isArray(s.adjuntos) && s.adjuntos.length) {
+        d.append(el('div', { class: 'archivo', text: '📎 ' + s.adjuntos.map(x => x.nombre + ' (' + tamano(x.bytes || 0) + ')').join(', ') }));
+      }
+    }
+    if (!db) {
+      d.append(el('div', { class: 'aviso', text: 'Las sugerencias se pueden dejar desde tu cuenta de claude.ai con sesión iniciada.' }));
+      return d;
+    }
+    if (a.estado === 'terminado' || a.estado === 'relevado') {
+      d.append(el('div', { class: 'aviso', text: a.estado === 'relevado' ? 'Este agente fue relevado: dejale la sugerencia a su relevo.' : 'Este agente ya terminó. Una sugerencia aquí hace que el coordinador lo retome o lance un relevo.' }));
+    }
+    const lista = pendientes[a.id] || (pendientes[a.id] = []);
+    const idArea = 'sug-' + a.id;
+    const idArchivo = 'adj-' + a.id;
+    const zona = el('div', { class: 'zona' });
+    const area = el('textarea', { id: idArea, placeholder: 'Escribí la sugerencia y arrastrá aquí los archivos para este agente' });
+    area.value = borradores[a.id] || '';
+    area.addEventListener('input', () => { borradores[a.id] = area.value; });
+    const chips = el('div', { class: 'chips' });
+    const estado = el('div', { class: 'aviso', 'aria-live': 'polite', text: mensajes[a.id] || '' });
+    const decir = t => { mensajes[a.id] = t; estado.textContent = t; };
+    function pintarChips() {
+      chips.textContent = '';
+      lista.forEach((f, i) => chips.append(el('span', { class: 'adj' }, '📎 ' + f.name + ' · ' + tamano(f.size) + ' ',
+        el('button', { type: 'button', class: 'quitar', 'aria-label': 'Quitar ' + f.name, text: '×', onclick: () => { lista.splice(i, 1); pintarChips(); } }))));
+    }
+    function agregar(files) {
+      for (const f of files) {
+        if (f.size > MAX_BYTES) { decir(f.name + ' pesa ' + tamano(f.size) + ': el máximo por archivo es 5 MB.'); continue; }
+        if (f.size === 0) { decir(f.name + ' está vacío.'); continue; }
+        lista.push(f);
+      }
+      pintarChips();
+    }
+    const input = el('input', { type: 'file', id: idArchivo, multiple: '', hidden: '' });
+    input.addEventListener('change', () => { agregar(input.files); input.value = ''; });
+    const elegir = el('button', { class: 'boton secundario', type: 'button', text: 'Adjuntar archivo', onclick: () => input.click() });
+    ['dragenter', 'dragover'].forEach(t => zona.addEventListener(t, ev => { ev.preventDefault(); ev.stopPropagation(); zona.classList.add('encima'); }));
+    ['dragleave', 'drop'].forEach(t => zona.addEventListener(t, ev => { ev.preventDefault(); ev.stopPropagation(); zona.classList.remove('encima'); }));
+    zona.addEventListener('drop', ev => { if (ev.dataTransfer && ev.dataTransfer.files.length) agregar(ev.dataTransfer.files); });
+    zona.append(area, el('div', { class: 'aviso', text: 'Soltá archivos aquí: Word, Excel, PDF, .py, .sql o el que sea, hasta 5 MB cada uno.' }), chips);
+    pintarChips();
+
+    const boton = el('button', { class: 'boton', type: 'button', text: 'Enviar sugerencia' });
+    boton.addEventListener('click', async () => {
+      const texto = area.value.trim();
+      if (!texto && !lista.length) { decir('Escribí la sugerencia o adjuntá un archivo antes de enviarla.'); return; }
+      boton.disabled = true; elegir.disabled = true;
+      try {
+        const adjuntos = [];
+        for (const f of lista) adjuntos.push(await subirAdjunto(f, p, a, t => { decir('Subiendo ' + t); }));
+        decir('Guardando…');
+        await db.collection('sugerencias').add({ proyecto: p.id, agente: a.id, nombreAgente: a.nombre || a.id, texto: texto.slice(0, 1000), adjuntos, estado: 'pendiente', creada: new Date().toISOString() });
+        area.value = ''; borradores[a.id] = ''; lista.length = 0; pintarChips();
+        decir('Guardada. El coordinador se la pasa al agente en su siguiente paso.');
+      } catch (e) {
+        decir((e && e.code === 'quota_exceeded')
+          ? 'El tablero se quedó sin espacio para archivos. Pedile al coordinador que limpie adjuntos ya entregados.'
+          : 'No se pudo guardar. Revisá tu conexión e intentá de nuevo; los archivos siguen en la lista.');
+      } finally { boton.disabled = false; elegir.disabled = false; }
+    });
+    d.append(el('label', { for: idArea, text: 'Sugerencia para este agente' }), zona, input,
+      el('div', { class: 'fila' }, boton, elegir), estado);
+    return d;
+  }
+
+  window.addEventListener('dragover', ev => ev.preventDefault());
+  window.addEventListener('drop', ev => ev.preventDefault());
+
+  render();
+
+  const temporizador = setTimeout(() => { if (!cargado) { $('meta').textContent = 'No se pudieron cargar los datos. Abrí el tablero con tu cuenta de claude.ai.'; cargado = true; render(); } }, 10000);
+  (async () => {
+    db = window.claude && window.claude.use ? await window.claude.use('db') : null;
+    if (!db) { clearTimeout(temporizador); cargado = true; $('meta').textContent = 'El tablero se ve con tu cuenta de claude.ai con sesión iniciada.'; render(); return; }
+    const marcar = () => { if (!cargado) { cargado = true; clearTimeout(temporizador); } };
+    const leer = snap => snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+    const error = () => { marcar(); $('meta').textContent = 'Se perdió la conexión con los datos. Recargá la página para reconectar.'; };
+    db.collection('proyectos').onSnapshot(s => {
+      proyectos = leer(s).sort((a, b) => String(b.actualizado || '').localeCompare(String(a.actualizado || '')));
+      marcar(); render();
+    }, error);
+    db.collection('agentes').onSnapshot(s => { agentes = leer(s); render(); }, error);
+    db.collection('sugerencias').onSnapshot(s => { sugerencias = leer(s); render(); }, error);
+  })();
+  setInterval(() => { if (proyectos.length && !abierto) render(); }, 60000);
+})();
+</script>

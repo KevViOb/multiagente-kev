@@ -1,0 +1,14 @@
+# Archivos del sistema o del editor
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.log
+# Archivos que escribe Claude Code al cargar un plugin
+.claude-plugin/types/
+.mcpb-cache/
+# Nunca subir credenciales ni configuración local
+.env
+.env.*
+*.pem
+*.key

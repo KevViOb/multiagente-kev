@@ -1,0 +1,8 @@
+{
+  "name": "multiagente-kev",
+  "version": "1.0.0",
+  "description": "Flujo de trabajo multiagente para Claude: un coordinador que arma un equipo de subagentes expertos según la tarea, con revisión, auditoría de seguridad, relevos, memoria del proyecto y un tablero en vivo.",
+  "author": { "name": "Kevin Villalobos Obando" },
+  "license": "MIT",
+  "keywords": ["multiagente", "subagentes", "orquestación", "skill", "claude"]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "kevviob",
+  "description": "Skills y herramientas de Kevin Villalobos Obando para trabajar con Claude.",
+  "owner": {
+    "name": "Kevin Villalobos Obando"
+  },
+  "plugins": [
+    {
+      "name": "multiagente-kev",
+      "source": "./",
+      "description": "Flujo de trabajo multiagente con coordinador, expertos según la tarea y Tablero de agentes."
+    }
+  ]
+}
