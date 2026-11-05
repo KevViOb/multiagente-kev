@@ -42,6 +42,7 @@ flowchart TD
 - **Compuerta de seguridad.** Ningún commit pasa sin que el auditor revise secretos, `.env`, llaves, datos personales reales y vulnerabilidades básicas.
 - **Memoria del proyecto en archivos.** `contexto-compartido.md`, `estado-proyecto.md`, `mapa-material.md` y bitácoras por agente. Si la conversación se compacta, el coordinador relee esos archivos y sigue sin perder decisiones.
 - **Relevos.** Si un agente se satura, deja su bitácora al día y otro con el mismo rol sigue desde donde quedó. El coordinador también se puede relevar a una conversación nueva sin relanzar agentes de partes terminadas.
+- **Modelo según el rol.** Opus para quien crea, decide o audita; Sonnet para lectura, documentación e integración simple; Haiku para tareas mecánicas. Ahorra uso del plan sin bajar la calidad donde importa.
 - **Respaldo.** Si la sesión no permite subagentes, trabaja en una sola conversación con todo lo demás.
 
 ## Tablero de agentes
@@ -51,6 +52,7 @@ La skill crea (una sola vez) una página privada en la cuenta del usuario que mu
 - Barra de etapas: Lectura → Producción → Revisión → Integración → Entrega.
 - El coordinador arriba y cada agente debajo con su ícono, estado, etapa, acción actual y archivo; los agentes relevados aparecen atenuados.
 - Una casilla por agente para dejarle **sugerencias** y **arrastrar archivos** de cualquier tipo (Word, Excel, PDF, `.py`, `.sql`…, hasta 5 MB). El coordinador las entrega al agente correcto y confirma en el chat.
+- Botones para **borrar un proyecto** o **liberar espacio** de archivos ya entregados, con confirmación.
 - Funciona en el teléfono y en la computadora, con tema claro y oscuro.
 
 ![Tablero de agentes en la computadora, con un proyecto de ejemplo](docs/tablero-escritorio.png)

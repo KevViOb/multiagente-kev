@@ -129,6 +129,10 @@ textarea {
 .adj { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; background: var(--idle-soft); border-radius: 8px; padding: 3px 4px 3px 8px; max-width: 100%; overflow-wrap: anywhere; }
 .quitar { border: none; background: transparent; color: var(--muted); font-size: 1rem; line-height: 1; cursor: pointer; padding: 0 4px; }
 .boton.secundario { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.opciones { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 0.82rem; color: var(--muted); }
+.opciones:empty { display: none; }
+.boton.peligro { background: var(--bad); color: var(--panel); }
+.boton.discreto { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 .sug { font-size: 0.82rem; display: flex; gap: 6px; align-items: baseline; }
 .sug .pill { flex: none; }
 .aviso { font-size: 0.8rem; color: var(--muted); }
@@ -149,6 +153,7 @@ footer { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction:
     <p class="sub">Quién hace qué y en qué etapa va cada proyecto que trabaja el coordinador con multiagentes. Tocá un agente para ver su detalle, dejarle una sugerencia o adjuntarle archivos.</p>
     <div class="proyectos" id="proyectos" role="group" aria-label="Proyectos"></div>
     <div class="meta" id="meta">Conectando con los datos del tablero…</div>
+    <div class="opciones" id="opciones"></div>
   </header>
 
   <section aria-label="Etapas del proyecto" class="etapas" id="etapas"></section>
@@ -201,6 +206,7 @@ footer { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction:
   const ESTADO_TXT = { trabajando: 'trabajando', terminado: 'terminado', pendiente: 'pendiente', relevado: 'relevado', error: 'con problema', interrumpido: 'con problema' };
 
   let proyectos = [], agentes = [], sugerencias = [];
+  let confirmando = null, ocupado = false, avisoOpciones = '';
   let seleccion = null, abierto = null, db = null, cargado = false;
   const borradores = {};
   try { seleccion = localStorage.getItem('tablero-proyecto'); } catch (e) {}
@@ -209,6 +215,7 @@ footer { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction:
   function el(tag, attrs, ...hijos) {
     const n = document.createElement(tag);
     for (const k in attrs || {}) {
+      if (attrs[k] === null || attrs[k] === undefined) continue;
       if (k === 'class') n.className = attrs[k];
       else if (k === 'text') n.textContent = attrs[k];
       else if (k.startsWith('on')) n.addEventListener(k.slice(2), attrs[k]);
@@ -278,6 +285,7 @@ footer { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction:
         ? 'Todavía no hay proyectos. Cuando el coordinador empiece un trabajo con multiagentes, el equipo aparece aquí con la etapa y el estado de cada agente.'
         : 'Cargando el tablero…' }));
       $('meta').textContent = cargado ? 'Sin proyectos todavía' : $('meta').textContent;
+      $('opciones').textContent = '';
       return;
     }
 
@@ -289,6 +297,8 @@ footer { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction:
       activos + ' trabajando · ' + listos + ' terminados · ' + lista.length + ' agentes',
       p.actualizado ? 'actualizado ' + hace(p.actualizado) : ''
     ].filter(Boolean).join('  ·  ');
+
+    pintarOpciones(p);
 
     arbol.textContent = '';
     const coord = el('div', { class: 'coord' }, icono('coordinador'), el('strong', { text: 'Coordinador' }),
@@ -303,6 +313,64 @@ footer { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction:
     const porId = Object.fromEntries(lista.map(a => [a.id, a]));
     for (const a of lista) grid.append(el('div', { class: 'rama' }, nodo(a, porId, p)));
     arbol.append(grid);
+  }
+
+  async function borrarDocs(coleccion, campo, valor) {
+    const snap = await db.collection(coleccion).where(campo, '==', valor).get();
+    for (const d of snap.docs) await db.collection(coleccion).doc(d.id).delete();
+    return snap.docs.map(d => d.id);
+  }
+
+  async function borrarAdjuntos(ids) {
+    for (const id of ids) {
+      await borrarDocs('adjuntos_partes', 'adjunto', id);
+      await db.collection('adjuntos').doc(id).delete();
+    }
+  }
+
+  async function borrarProyecto(p) {
+    const adj = await db.collection('adjuntos').where('proyecto', '==', p.id).get();
+    await borrarAdjuntos(adj.docs.map(d => d.id));
+    await borrarDocs('sugerencias', 'proyecto', p.id);
+    await borrarDocs('agentes', 'proyecto', p.id);
+    await db.collection('proyectos').doc(p.id).delete();
+  }
+
+  async function liberarEspacio(p) {
+    const ids = [];
+    for (const s of sugerencias) {
+      if (s.proyecto !== p.id || s.estado !== 'entregada' || !Array.isArray(s.adjuntos)) continue;
+      for (const a of s.adjuntos) if (a && a.id) ids.push(a.id);
+    }
+    await borrarAdjuntos(ids);
+    return ids.length;
+  }
+
+  function pintarOpciones(p) {
+    const cont = $('opciones'); cont.textContent = '';
+    if (!db || !p) return;
+    const accion = async (tipo) => {
+      ocupado = true; avisoOpciones = tipo === 'borrar' ? 'Borrando el proyecto…' : 'Liberando espacio…'; render();
+      try {
+        if (tipo === 'borrar') { await borrarProyecto(p); avisoOpciones = 'Proyecto borrado.'; seleccion = null; }
+        else { const n = await liberarEspacio(p); avisoOpciones = n ? n + ' archivo(s) entregado(s) borrado(s).' : 'No había archivos entregados para borrar.'; }
+      } catch (e) { avisoOpciones = 'No se pudo terminar. Revisá tu conexión e intentá de nuevo.'; }
+      confirmando = null; ocupado = false; render();
+    };
+    if (confirmando === p.id + ':borrar') {
+      cont.append(el('span', { text: '¿Borrar "' + (p.nombre || p.id) + '" con sus agentes, sugerencias y archivos? No se puede deshacer.' }),
+        el('button', { class: 'boton peligro', type: 'button', text: 'Sí, borrar', disabled: ocupado ? '' : null, onclick: () => accion('borrar') }),
+        el('button', { class: 'boton discreto', type: 'button', text: 'Cancelar', onclick: () => { confirmando = null; render(); } }));
+    } else if (confirmando === p.id + ':liberar') {
+      cont.append(el('span', { text: '¿Borrar los archivos adjuntos que ya se entregaron en este proyecto? Las sugerencias quedan.' }),
+        el('button', { class: 'boton peligro', type: 'button', text: 'Sí, borrar archivos', onclick: () => accion('liberar') }),
+        el('button', { class: 'boton discreto', type: 'button', text: 'Cancelar', onclick: () => { confirmando = null; render(); } }));
+    } else {
+      cont.append(
+        el('button', { class: 'boton discreto', type: 'button', text: 'Liberar espacio', onclick: () => { confirmando = p.id + ':liberar'; avisoOpciones = ''; render(); } }),
+        el('button', { class: 'boton discreto', type: 'button', text: 'Borrar proyecto', onclick: () => { confirmando = p.id + ':borrar'; avisoOpciones = ''; render(); } }));
+    }
+    if (avisoOpciones) cont.append(el('span', { text: avisoOpciones, 'aria-live': 'polite' }));
   }
 
   function nodo(a, porId, p) {

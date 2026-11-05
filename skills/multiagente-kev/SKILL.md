@@ -94,6 +94,24 @@ Reglas:
 - **Tester de pruebas:** escribe y ejecuta pruebas (unitarias, de integración cuando aplique) y reporta qué pasa y qué falla.
 - **Auditor de seguridad:** es una compuerta obligatoria antes de cada commit (ver sección "Compuerta de seguridad").
 
+### Modelo de cada agente
+
+Por defecto un subagente usa el mismo modelo que el coordinador. Para ahorrar uso del plan sin perder calidad, el coordinador elige el modelo según el rol con el parámetro `model` de la herramienta de agentes:
+
+| Modelo | Roles |
+|---|---|
+| **Opus** | Expertos que crean o deciden: código, SQL, arquitectura, matrices de gestión, diagramas, redacción académica, diseño. También el revisor/tester y el **auditor de seguridad**, porque un error ahí es caro. |
+| **Sonnet** | Lector/sintetizador, documentador, investigador web e integrador de partes que solo hay que unir. |
+| **Haiku** | Tareas mecánicas muy simples: buscar o renombrar archivos, convertir formatos, pruebas rápidas. |
+
+Reglas:
+- El coordinador siempre trabaja con el modelo que Kev tenga elegido.
+- Si la tarea de un rol "Sonnet" resulta compleja (material muy técnico, una integración con decisiones), se usa Opus.
+- Si el revisor rechaza el trabajo de un agente Sonnet o Haiku por calidad, su relevo va en Opus.
+- Si Kev pide un modelo para todos ("todo en Opus"), se respeta.
+- El esfuerzo de razonamiento de cada subagente lo define su tipo de agente; el coordinador no lo puede fijar por agente. No prometerle a Kev un nivel de esfuerzo para los subagentes.
+- En la pregunta del Paso 0, el árbol propuesto muestra el modelo de cada agente.
+
 ## Flujo
 
 ### 1. Comprender
@@ -350,12 +368,12 @@ Cada escritura a un documento que ya existe lleva el `if_version` del último re
 - **Entrega:** pasarle al agente vigente la sugerencia y las rutas de sus archivos con SendMessage. Si ese agente ya terminó, retomarlo con SendMessage o lanzar un relevo; si fue relevado, dársela a su relevo.
 - Marcar la sugerencia como `entregada` y confirmarle a Kev en una línea qué entregó y a quién.
 - La sugerencia es una indicación de Kev sobre el trabajo de ese agente. Si pide algo fuera del proyecto o algo irreversible, el coordinador la confirma con Kev en el chat antes de pasarla.
-- Los adjuntos ya entregados ocupan espacio en el tablero. Si la página avisa que se quedó sin espacio, el coordinador le propone a Kev borrar los adjuntos de proyectos terminados y solo los borra si él dice que sí.
+- Los adjuntos ya entregados ocupan espacio en el tablero. Si la página avisa que se quedó sin espacio, el coordinador le recuerda a Kev el botón **"Liberar espacio"** del proyecto.
 
 ### Costo y respaldo
 
 - Encontrar el tablero y dar de alta el proyecto: dos llamadas pequeñas. Cada cambio de estado: una escritura pequeña. No se lee ni se republica la página.
-- Nunca se borran proyectos viejos salvo que Kev lo pida.
+- El coordinador no borra proyectos ni archivos del tablero. Kev lo hace desde la página con **"Borrar proyecto"** (borra el proyecto con sus agentes, sugerencias y archivos) y **"Liberar espacio"** (borra solo los archivos ya entregados), los dos con confirmación.
 - Si el tablero no está disponible (la herramienta no aparece o la página no abre): se sigue igual con el árbol en texto y la lista de tareas, y se le avisa a Kev en una línea.
 
 ## Visibilidad para Kev (árbol de agentes)
@@ -364,12 +382,12 @@ Cada escritura a un documento que ya existe lleva el `if_version` del último re
 
 ```
 Coordinador
-├── Lector / sintetizador (fijo) → mapa y resumen de 12 documentos
-├── Experto en gestión → matriz de riesgos, matriz RACI
-├── Experto en diagramas → EDT, diagrama de Gantt
-├── Redactor académico → informe final
-├── Revisor / tester (fijo)
-└── Documentador (fijo)
+├── Lector / sintetizador (fijo, Sonnet) → mapa y resumen de 12 documentos
+├── Experto en gestión (Opus) → matriz de riesgos, matriz RACI
+├── Experto en diagramas (Opus) → EDT, diagrama de Gantt
+├── Redactor académico (Opus) → informe final
+├── Revisor / tester (fijo, Opus)
+└── Documentador (fijo, Sonnet)
 ```
 
 - El **Tablero de agentes** es la vista principal: se mantiene al día como dice su sección.
